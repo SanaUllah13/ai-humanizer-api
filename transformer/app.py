@@ -61,28 +61,31 @@ class AcademicTextHumanizer:
         self.p_synonym_replacement = p_synonym_replacement
         self.p_academic_transition = p_academic_transition
 
-        # Common academic transitions
+        # Common academic and natural transitions
         self.academic_transitions = [
             "Moreover,", "Additionally,", "Furthermore,", "Hence,", 
-            "Therefore,", "Consequently,", "Nonetheless,", "Nevertheless,"
+            "Therefore,", "Consequently,", "Nonetheless,", "Nevertheless,",
+            "Subsequently,", "Indeed,", "In fact,", "Notably,", "Clearly,",
+            "Evidently,", "Undoubtedly,", "However,", "Meanwhile,"
         ]
 
     def humanize_text(self, text, use_passive=False, use_synonyms=False):
         import re
+        
+        # 1. Expand contractions FIRST, before any tokenization
+        text = self.expand_contractions(text)
+        
         doc = self.nlp(text)
         transformed_sentences = []
 
         for i, sent in enumerate(doc.sents):
             sentence_str = sent.text.strip()
 
-            # 1. Expand contractions first
-            sentence_str = self.expand_contractions(sentence_str)
-
             # 2. Add academic transitions (only to some sentences, not the first)
             if i > 0 and random.random() < self.p_academic_transition:
                 sentence_str = self.add_academic_transitions(sentence_str)
 
-            # 3. Optionally replace words with synonyms (using proper detokenization)
+            # 3. Optionally replace words with synonyms (excluding verbs to preserve grammar)
             if use_synonyms and random.random() < self.p_synonym_replacement:
                 sentence_str = self.replace_with_synonyms(sentence_str)
 
@@ -98,9 +101,9 @@ class AcademicTextHumanizer:
         # Clean up any double spaces
         result = re.sub(r'\s+', ' ', result).strip()
         
-        # Fix spacing around punctuation
+        # Fix spacing around punctuation (but not inside quotes)
         result = re.sub(r'\s+([.,!?;:])', r'\1', result)  # Remove space before punctuation
-        result = re.sub(r'([.,!?;:])([A-Za-z])', r'\1 \2', result)  # Add space after punctuation if missing
+        result = re.sub(r'([.,!?;:])(?=[A-Za-z])', r'\1 ', result)  # Add space after punctuation if missing
         
         return result
 
@@ -156,8 +159,12 @@ class AcademicTextHumanizer:
         return sentence
 
     def add_academic_transitions(self, sentence):
+        import re
         transition = random.choice(self.academic_transitions)
-        return f"{transition} {sentence}"
+        # Only add transition if sentence starts with a capital letter and isn't a quote
+        if sentence and sentence[0].isupper() and not sentence.startswith('"'):
+            return f"{transition} {sentence}"
+        return sentence
 
     def convert_to_passive(self, sentence):
         # Disabled: passive voice conversion was creating grammatical errors
@@ -174,9 +181,9 @@ class AcademicTextHumanizer:
 
         new_tokens = []
         for (word, pos) in pos_tags:
-            # Skip punctuation and very short words
-            if pos.startswith(('J', 'N', 'V', 'R')) and wordnet.synsets(word) and len(word) > 3:
-                if random.random() < 0.4:  # 40% chance for synonym replacement
+            # Only replace adjectives (J), nouns (N), and adverbs (R) - SKIP VERBS to preserve grammar
+            if pos.startswith(('J', 'N', 'R')) and wordnet.synsets(word) and len(word) > 3:
+                if random.random() < 0.5:  # 50% chance for synonym replacement
                     synonyms = self._get_synonyms(word, pos)
                     if synonyms:
                         best_synonym = self._select_closest_synonym(word, synonyms)
