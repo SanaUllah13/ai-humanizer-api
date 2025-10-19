@@ -98,24 +98,59 @@ class AcademicTextHumanizer:
         # Clean up any double spaces
         result = re.sub(r'\s+', ' ', result).strip()
         
+        # Fix spacing around punctuation
+        result = re.sub(r'\s+([.,!?;:])', r'\1', result)  # Remove space before punctuation
+        result = re.sub(r'([.,!?;:])([A-Za-z])', r'\1 \2', result)  # Add space after punctuation if missing
+        
         return result
 
     def expand_contractions(self, sentence):
         import re
-        # More comprehensive contraction map
-        contractions = {
-            r"won't": "will not",
-            r"can't": "cannot",
-            r"n't": " not",
-            r"'re": " are",
-            r"'ve": " have",
-            r"'ll": " will",
-            r"'d": " would",
-            r"'m": " am",
-        }
+        # Comprehensive contraction map (handles both with and without apostrophes)
+        contractions = [
+            (r"\bwon'?t\b", "will not"),
+            (r"\bcan'?t\b", "cannot"),
+            (r"\bdon'?t\b", "do not"),
+            (r"\bdoesn'?t\b", "does not"),
+            (r"\bdidn'?t\b", "did not"),
+            (r"\bshouldn'?t\b", "should not"),
+            (r"\bwouldn'?t\b", "would not"),
+            (r"\bcouldn'?t\b", "could not"),
+            (r"\bisn'?t\b", "is not"),
+            (r"\baren'?t\b", "are not"),
+            (r"\bwasn'?t\b", "was not"),
+            (r"\bweren'?t\b", "were not"),
+            (r"\bhaven'?t\b", "have not"),
+            (r"\bhasn'?t\b", "has not"),
+            (r"\bhadn'?t\b", "had not"),
+            (r"\bI'?m\b", "I am"),
+            (r"\byou'?re\b", "you are"),
+            (r"\bhe'?s\b", "he is"),
+            (r"\bshe'?s\b", "she is"),
+            (r"\bit'?s\b", "it is"),
+            (r"\bwe'?re\b", "we are"),
+            (r"\bthey'?re\b", "they are"),
+            (r"\bI'?ll\b", "I will"),
+            (r"\byou'?ll\b", "you will"),
+            (r"\bhe'?ll\b", "he will"),
+            (r"\bshe'?ll\b", "she will"),
+            (r"\bit'?ll\b", "it will"),
+            (r"\bwe'?ll\b", "we will"),
+            (r"\bthey'?ll\b", "they will"),
+            (r"\bI'?ve\b", "I have"),
+            (r"\byou'?ve\b", "you have"),
+            (r"\bwe'?ve\b", "we have"),
+            (r"\bthey'?ve\b", "they have"),
+            (r"\bI'?d\b", "I would"),
+            (r"\byou'?d\b", "you would"),
+            (r"\bhe'?d\b", "he would"),
+            (r"\bshe'?d\b", "she would"),
+            (r"\bwe'?d\b", "we would"),
+            (r"\bthey'?d\b", "they would"),
+        ]
         
         # Apply contractions with word boundaries
-        for pattern, replacement in contractions.items():
+        for pattern, replacement in contractions:
             sentence = re.sub(pattern, replacement, sentence, flags=re.IGNORECASE)
         
         return sentence
