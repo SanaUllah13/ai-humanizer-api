@@ -183,7 +183,7 @@ class AcademicTextHumanizer:
             # Only replace adjectives (J), nouns (N), and adverbs (R) - SKIP VERBS to preserve grammar
             # Also skip proper nouns (NNP, NNPS) and possessives
             if pos.startswith(('J', 'N', 'RB')) and not pos.startswith(('NNP', 'NNPS')) and wordnet.synsets(word) and len(word) > 3:
-                if random.random() < 0.5:  # 50% chance for synonym replacement
+                if random.random() < 0.35:  # 35% chance for synonym replacement (quality over quantity)
                     synonyms = self._get_synonyms(word, pos)
                     if synonyms:
                         best_synonym = self._select_closest_synonym(word, synonyms)
@@ -237,11 +237,17 @@ class AcademicTextHumanizer:
     def _select_closest_synonym(self, original_word, synonyms):
         if not synonyms:
             return None
+        # Filter out synonyms that are too different in length or structure
+        filtered_synonyms = [s for s in synonyms if len(s.split()) == 1 and abs(len(s) - len(original_word)) <= 3]
+        if not filtered_synonyms:
+            return None
+            
         original_emb = self.model.encode(original_word, convert_to_tensor=True)
-        synonym_embs = self.model.encode(synonyms, convert_to_tensor=True)
+        synonym_embs = self.model.encode(filtered_synonyms, convert_to_tensor=True)
         cos_scores = util.cos_sim(original_emb, synonym_embs)[0]
         max_score_index = cos_scores.argmax().item()
         max_score = cos_scores[max_score_index].item()
-        if max_score >= 0.5:
-            return synonyms[max_score_index]
+        # Increased threshold from 0.5 to 0.7 for better quality
+        if max_score >= 0.7:
+            return filtered_synonyms[max_score_index]
         return None
