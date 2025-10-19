@@ -4,4 +4,7 @@ set -e
 echo "Installing Python dependencies..."
 pip install -r requirements.txt
 
-echo "Build complete! (Lite version - no ML models needed)"
+echo "Downloading spaCy language model..."
+python -m spacy download en_core_web_sm
+
+echo "Build complete! Full version with ML models ready."
