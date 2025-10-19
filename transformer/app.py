@@ -144,7 +144,7 @@ class AcademicTextHumanizer:
         new_tokens = []
         for (word, pos) in pos_tags:
             if pos.startswith(('J', 'N', 'V', 'R')) and wordnet.synsets(word):
-                if random.random() < 0.5:
+                if random.random() < 0.3:  # Reduced from 0.5 to 0.3 for faster processing
                     synonyms = self._get_synonyms(word, pos)
                     if synonyms:
                         best_synonym = self._select_closest_synonym(word, synonyms)
