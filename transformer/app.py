@@ -163,7 +163,8 @@ class AcademicTextHumanizer:
         transition = random.choice(self.academic_transitions)
         # Only add transition if sentence starts with a capital letter and isn't a quote
         if sentence and sentence[0].isupper() and not sentence.startswith('"'):
-            return f"{transition} {sentence}"
+            # Lowercase the first letter of the sentence after transition
+            return f"{transition} {sentence[0].lower()}{sentence[1:]}"
         return sentence
 
     def convert_to_passive(self, sentence):
@@ -173,21 +174,26 @@ class AcademicTextHumanizer:
 
     def replace_with_synonyms(self, sentence):
         import re
-        from nltk.tokenize.treebank import TreebankWordDetokenizer
         
         tokens = word_tokenize(sentence)
         pos_tags = nltk.pos_tag(tokens)
-        detokenizer = TreebankWordDetokenizer()
 
         new_tokens = []
         for (word, pos) in pos_tags:
             # Only replace adjectives (J), nouns (N), and adverbs (R) - SKIP VERBS to preserve grammar
-            if pos.startswith(('J', 'N', 'R')) and wordnet.synsets(word) and len(word) > 3:
+            # Also skip proper nouns (NNP, NNPS) and possessives
+            if pos.startswith(('J', 'N', 'RB')) and not pos.startswith(('NNP', 'NNPS')) and wordnet.synsets(word) and len(word) > 3:
                 if random.random() < 0.5:  # 50% chance for synonym replacement
                     synonyms = self._get_synonyms(word, pos)
                     if synonyms:
                         best_synonym = self._select_closest_synonym(word, synonyms)
-                        new_tokens.append(best_synonym if best_synonym else word)
+                        if best_synonym:
+                            # Preserve capitalization
+                            if word[0].isupper():
+                                best_synonym = best_synonym.capitalize()
+                            new_tokens.append(best_synonym)
+                        else:
+                            new_tokens.append(word)
                     else:
                         new_tokens.append(word)
                 else:
@@ -195,8 +201,19 @@ class AcademicTextHumanizer:
             else:
                 new_tokens.append(word)
 
-        # Properly detokenize to avoid extra spaces
-        return detokenizer.detokenize(new_tokens)
+        # Simple join with intelligent spacing
+        result = ""
+        for i, token in enumerate(new_tokens):
+            if i == 0:
+                result += token
+            elif token in '.,!?;:\'")':
+                result += token
+            elif new_tokens[i-1] in '(\'"':
+                result += token
+            else:
+                result += ' ' + token
+        
+        return result
 
     def _get_synonyms(self, word, pos):
         wn_pos = None
