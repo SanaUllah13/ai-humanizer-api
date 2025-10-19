@@ -25,11 +25,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize the humanizer with ML models (optimized for speed)
+# Initialize the humanizer with ML models (optimized for quality and speed)
 humanizer = AcademicTextHumanizer(
-    p_passive=0.2,
-    p_synonym_replacement=0.15,
-    p_academic_transition=0.3
+    p_passive=0.0,  # Disabled due to grammar issues
+    p_synonym_replacement=0.4,  # Increased for better humanization
+    p_academic_transition=0.35  # Moderate transitions
 )
 
 class TextRequest(BaseModel):

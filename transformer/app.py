@@ -68,83 +68,80 @@ class AcademicTextHumanizer:
         ]
 
     def humanize_text(self, text, use_passive=False, use_synonyms=False):
+        import re
         doc = self.nlp(text)
         transformed_sentences = []
 
-        for sent in doc.sents:
+        for i, sent in enumerate(doc.sents):
             sentence_str = sent.text.strip()
 
-            # 1. Expand contractions
+            # 1. Expand contractions first
             sentence_str = self.expand_contractions(sentence_str)
 
-            # 2. Possibly add academic transitions
-            if random.random() < self.p_academic_transition:
+            # 2. Add academic transitions (only to some sentences, not the first)
+            if i > 0 and random.random() < self.p_academic_transition:
                 sentence_str = self.add_academic_transitions(sentence_str)
 
-            # 3. Optionally convert to passive
-            if use_passive and random.random() < self.p_passive:
-                sentence_str = self.convert_to_passive(sentence_str)
-
-            # 4. Optionally replace words with synonyms
+            # 3. Optionally replace words with synonyms (using proper detokenization)
             if use_synonyms and random.random() < self.p_synonym_replacement:
                 sentence_str = self.replace_with_synonyms(sentence_str)
 
+            # Passive voice disabled for now due to grammar issues
+            # if use_passive and random.random() < self.p_passive:
+            #     sentence_str = self.convert_to_passive(sentence_str)
+
             transformed_sentences.append(sentence_str)
 
-        return ' '.join(transformed_sentences)
+        # Join sentences with proper spacing
+        result = ' '.join(transformed_sentences)
+        
+        # Clean up any double spaces
+        result = re.sub(r'\s+', ' ', result).strip()
+        
+        return result
 
     def expand_contractions(self, sentence):
-        contraction_map = {
-            "n't": " not", "'re": " are", "'s": " is", "'ll": " will",
-            "'ve": " have", "'d": " would", "'m": " am"
+        import re
+        # More comprehensive contraction map
+        contractions = {
+            r"won't": "will not",
+            r"can't": "cannot",
+            r"n't": " not",
+            r"'re": " are",
+            r"'ve": " have",
+            r"'ll": " will",
+            r"'d": " would",
+            r"'m": " am",
         }
-        tokens = word_tokenize(sentence)
-        expanded_tokens = []
-        for token in tokens:
-            lower_token = token.lower()
-            replaced = False
-            for contraction, expansion in contraction_map.items():
-                if contraction in lower_token and lower_token.endswith(contraction):
-                    new_token = lower_token.replace(contraction, expansion)
-                    if token[0].isupper():
-                        new_token = new_token.capitalize()
-                    expanded_tokens.append(new_token)
-                    replaced = True
-                    break
-            if not replaced:
-                expanded_tokens.append(token)
-
-        return ' '.join(expanded_tokens)
+        
+        # Apply contractions with word boundaries
+        for pattern, replacement in contractions.items():
+            sentence = re.sub(pattern, replacement, sentence, flags=re.IGNORECASE)
+        
+        return sentence
 
     def add_academic_transitions(self, sentence):
         transition = random.choice(self.academic_transitions)
         return f"{transition} {sentence}"
 
     def convert_to_passive(self, sentence):
-        doc = self.nlp(sentence)
-        subj_tokens = [t for t in doc if t.dep_ == 'nsubj' and t.head.dep_ == 'ROOT']
-        dobj_tokens = [t for t in doc if t.dep_ == 'dobj']
-
-        if subj_tokens and dobj_tokens:
-            subject = subj_tokens[0]
-            dobj = dobj_tokens[0]
-            verb = subject.head
-            if subject.i < verb.i < dobj.i:
-                passive_str = f"{dobj.text} {verb.lemma_} by {subject.text}"
-                original_str = ' '.join(token.text for token in doc)
-                chunk = f"{subject.text} {verb.text} {dobj.text}"
-                if chunk in original_str:
-                    sentence = original_str.replace(chunk, passive_str)
+        # Disabled: passive voice conversion was creating grammatical errors
+        # TODO: Implement proper passive voice with verb conjugation
         return sentence
 
     def replace_with_synonyms(self, sentence):
+        import re
+        from nltk.tokenize.treebank import TreebankWordDetokenizer
+        
         tokens = word_tokenize(sentence)
         pos_tags = nltk.pos_tag(tokens)
+        detokenizer = TreebankWordDetokenizer()
 
         new_tokens = []
         for (word, pos) in pos_tags:
-            if pos.startswith(('J', 'N', 'V', 'R')) and wordnet.synsets(word):
-                if random.random() < 0.3:  # Reduced from 0.5 to 0.3 for faster processing
+            # Skip punctuation and very short words
+            if pos.startswith(('J', 'N', 'V', 'R')) and wordnet.synsets(word) and len(word) > 3:
+                if random.random() < 0.4:  # 40% chance for synonym replacement
                     synonyms = self._get_synonyms(word, pos)
                     if synonyms:
                         best_synonym = self._select_closest_synonym(word, synonyms)
@@ -156,7 +153,8 @@ class AcademicTextHumanizer:
             else:
                 new_tokens.append(word)
 
-        return ' '.join(new_tokens)
+        # Properly detokenize to avoid extra spaces
+        return detokenizer.detokenize(new_tokens)
 
     def _get_synonyms(self, word, pos):
         wn_pos = None
