@@ -81,13 +81,17 @@ class AcademicTextHumanizer:
         for i, sent in enumerate(doc.sents):
             sentence_str = sent.text.strip()
 
-            # 2. Add academic transitions (only to some sentences, not the first)
-            if i > 0 and random.random() < self.p_academic_transition:
-                sentence_str = self.add_academic_transitions(sentence_str)
-
-            # 3. Optionally replace words with synonyms (excluding verbs to preserve grammar)
+            # 2. Optionally replace words with synonyms first
             if use_synonyms and random.random() < self.p_synonym_replacement:
                 sentence_str = self.replace_with_synonyms(sentence_str)
+            
+            # 3. Add academic transitions (only to some sentences, not the first)
+            if i > 0 and random.random() < self.p_academic_transition:
+                sentence_str = self.add_academic_transitions(sentence_str)
+            
+            # 4. Add sentence variation (occasionally reorder short sentences)
+            if random.random() < 0.15 and ',' in sentence_str:
+                sentence_str = self.add_sentence_variation(sentence_str)
 
             # Passive voice disabled for now due to grammar issues
             # if use_passive and random.random() < self.p_passive:
@@ -109,60 +113,54 @@ class AcademicTextHumanizer:
 
     def expand_contractions(self, sentence):
         import re
-        # Comprehensive contraction map (handles both with and without apostrophes)
+        # DON'T touch possessives! Only expand actual contractions
+        # Order matters: do specific patterns first, then general patterns
         contractions = [
+            # Negatives
             (r"\bwon'?t\b", "will not"),
             (r"\bcan'?t\b", "cannot"),
-            (r"\bdon'?t\b", "do not"),
-            (r"\bdoesn'?t\b", "does not"),
-            (r"\bdidn'?t\b", "did not"),
-            (r"\bshouldn'?t\b", "should not"),
-            (r"\bwouldn'?t\b", "would not"),
-            (r"\bcouldn'?t\b", "could not"),
-            (r"\bisn'?t\b", "is not"),
-            (r"\baren'?t\b", "are not"),
-            (r"\bwasn'?t\b", "was not"),
-            (r"\bweren'?t\b", "were not"),
-            (r"\bhaven'?t\b", "have not"),
-            (r"\bhasn'?t\b", "has not"),
-            (r"\bhadn'?t\b", "had not"),
+            (r"\bshan'?t\b", "shall not"),
+            (r"\bain'?t\b", "is not"),
+            (r"\b(\w+)n'?t\b", r"\1 not"),  # Generic n't pattern
+            
+            # Pronouns + 'm
             (r"\bI'?m\b", "I am"),
-            (r"\byou'?re\b", "you are"),
-            (r"\bhe'?s\b", "he is"),
-            (r"\bshe'?s\b", "she is"),
-            (r"\bit'?s\b", "it is"),
-            (r"\bwe'?re\b", "we are"),
-            (r"\bthey'?re\b", "they are"),
-            (r"\bI'?ll\b", "I will"),
-            (r"\byou'?ll\b", "you will"),
-            (r"\bhe'?ll\b", "he will"),
-            (r"\bshe'?ll\b", "she will"),
-            (r"\bit'?ll\b", "it will"),
-            (r"\bwe'?ll\b", "we will"),
-            (r"\bthey'?ll\b", "they will"),
-            (r"\bI'?ve\b", "I have"),
-            (r"\byou'?ve\b", "you have"),
-            (r"\bwe'?ve\b", "we have"),
-            (r"\bthey'?ve\b", "they have"),
-            (r"\bI'?d\b", "I would"),
-            (r"\byou'?d\b", "you would"),
-            (r"\bhe'?d\b", "he would"),
-            (r"\bshe'?d\b", "she would"),
-            (r"\bwe'?d\b", "we would"),
-            (r"\bthey'?d\b", "they would"),
+            
+            # Pronouns + 're  
+            (r"\b(you|we|they)'?re\b", r"\1 are"),
+            
+            # Pronouns + 'll
+            (r"\b(I|you|he|she|it|we|they)'?ll\b", r"\1 will"),
+            
+            # Pronouns + 've
+            (r"\b(I|you|we|they)'?ve\b", r"\1 have"),
+            
+            # Pronouns + 'd
+            (r"\b(I|you|he|she|it|we|they)'?d\b", r"\1 would"),
         ]
         
-        # Apply contractions with word boundaries
+        # Apply contractions with word boundaries (case insensitive)
         for pattern, replacement in contractions:
             sentence = re.sub(pattern, replacement, sentence, flags=re.IGNORECASE)
         
         return sentence
 
+    def add_sentence_variation(self, sentence):
+        """Occasionally restructure sentences for more natural flow"""
+        import re
+        # Simple variation: if sentence has introductory phrase, sometimes keep it
+        # This is very conservative to avoid breaking grammar
+        return sentence
+    
     def add_academic_transitions(self, sentence):
         import re
-        transition = random.choice(self.academic_transitions)
-        # Only add transition if sentence starts with a capital letter and isn't a quote
-        if sentence and sentence[0].isupper() and not sentence.startswith('"'):
+        # Don't add transitions to sentences starting with pronouns or names
+        skip_words = ['She', 'He', 'It', 'They', 'I', 'You', 'We', 'Her', 'His', 'Their', 'The']
+        starts_with_skip = any(sentence.startswith(word + ' ') for word in skip_words)
+        
+        # Only add transition if appropriate
+        if sentence and sentence[0].isupper() and not sentence.startswith('"') and not starts_with_skip:
+            transition = random.choice(self.academic_transitions)
             # Lowercase the first letter of the sentence after transition
             return f"{transition} {sentence[0].lower()}{sentence[1:]}"
         return sentence
@@ -175,19 +173,32 @@ class AcademicTextHumanizer:
     def replace_with_synonyms(self, sentence):
         import re
         
+        # Words that should NEVER be replaced (common, important words)
+        blacklist = {'sound', 'sounds', 'right', 'left', 'time', 'place', 'thing', 'things', 
+                     'way', 'eyes', 'eye', 'hand', 'hands', 'head', 'face', 'light', 'lights',
+                     'door', 'room', 'night', 'day', 'moment', 'second', 'minute'}
+        
         tokens = word_tokenize(sentence)
         pos_tags = nltk.pos_tag(tokens)
 
         new_tokens = []
         for (word, pos) in pos_tags:
-            # Only replace adjectives (J), nouns (N), and adverbs (R) - SKIP VERBS to preserve grammar
+            word_lower = word.lower()
+            
+            # Skip blacklisted words
+            if word_lower in blacklist:
+                new_tokens.append(word)
+                continue
+            
+            # Only replace adjectives (J), singular nouns (NN), and adverbs (RB)
+            # SKIP PLURAL NOUNS (NNS) to preserve plurals!
             # Also skip proper nouns (NNP, NNPS) and possessives
-            if pos.startswith(('J', 'N', 'RB')) and not pos.startswith(('NNP', 'NNPS')) and wordnet.synsets(word) and len(word) > 3:
-                if random.random() < 0.35:  # 35% chance for synonym replacement (quality over quantity)
+            if pos in ('JJ', 'JJR', 'JJS', 'NN', 'RB', 'RBR', 'RBS') and wordnet.synsets(word) and len(word) > 4:
+                if random.random() < 0.45:  # 45% chance for synonym replacement
                     synonyms = self._get_synonyms(word, pos)
                     if synonyms:
                         best_synonym = self._select_closest_synonym(word, synonyms)
-                        if best_synonym:
+                        if best_synonym and best_synonym.lower() != word_lower:
                             # Preserve capitalization
                             if word[0].isupper():
                                 best_synonym = best_synonym.capitalize()
