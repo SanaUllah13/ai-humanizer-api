@@ -29,7 +29,7 @@ app.add_middleware(
 humanizer = AcademicTextHumanizer(
     p_passive=0.0,  # Disabled due to grammar issues
     p_synonym_replacement=0.7,  # High for better AI detection bypass
-    p_academic_transition=0.25  # Moderate transitions (less is more natural)
+    p_academic_transition=0.15  # Low transitions (very selective for natural flow)
 )
 
 class TextRequest(BaseModel):

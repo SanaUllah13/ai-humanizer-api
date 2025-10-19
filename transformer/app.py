@@ -154,12 +154,15 @@ class AcademicTextHumanizer:
     
     def add_academic_transitions(self, sentence):
         import re
-        # Don't add transitions to sentences starting with pronouns or names
-        skip_words = ['She', 'He', 'It', 'They', 'I', 'You', 'We', 'Her', 'His', 'Their', 'The']
-        starts_with_skip = any(sentence.startswith(word + ' ') for word in skip_words)
+        # Don't add transitions to sentences starting with pronouns, names, or common words
+        skip_patterns = [r'^(She|He|It|They|I|You|We|Her|His|Their|The|A|An|This|That|These|Those)\b']
         
-        # Only add transition if appropriate
-        if sentence and sentence[0].isupper() and not sentence.startswith('"') and not starts_with_skip:
+        # Check if sentence starts with any skip pattern
+        should_skip = any(re.match(pattern, sentence, re.IGNORECASE) for pattern in skip_patterns)
+        
+        # Only add transition if appropriate and sentence doesn't start with common words
+        if (sentence and sentence[0].isupper() and not sentence.startswith('"') 
+            and not should_skip and len(sentence.split()) > 5):  # Only for longer sentences
             transition = random.choice(self.academic_transitions)
             # Lowercase the first letter of the sentence after transition
             return f"{transition} {sentence[0].lower()}{sentence[1:]}"
