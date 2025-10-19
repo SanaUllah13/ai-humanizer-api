@@ -113,33 +113,52 @@ class AcademicTextHumanizer:
 
     def expand_contractions(self, sentence):
         import re
-        # DON'T touch possessives! Only expand actual contractions
-        # Order matters: do specific patterns first, then general patterns
+        # ONLY expand actual contractions - be very specific!
         contractions = [
-            # Negatives
-            (r"\bwon'?t\b", "will not"),
-            (r"\bcan'?t\b", "cannot"),
-            (r"\bshan'?t\b", "shall not"),
-            (r"\bain'?t\b", "is not"),
-            (r"\b(\w+)n'?t\b", r"\1 not"),  # Generic n't pattern
+            # Specific negative contractions (order matters!)
+            (r"\bwon't\b", "will not"),
+            (r"\bcan't\b", "cannot"),
+            (r"\bshan't\b", "shall not"),
+            (r"\bain't\b", "is not"),
+            (r"\bwouldn't\b", "would not"),
+            (r"\bshouldn't\b", "should not"),
+            (r"\bcouldn't\b", "could not"),
+            (r"\bdidn't\b", "did not"),
+            (r"\bdoesn't\b", "does not"),
+            (r"\bdon't\b", "do not"),
+            (r"\bisn't\b", "is not"),
+            (r"\baren't\b", "are not"),
+            (r"\bwasn't\b", "was not"),
+            (r"\bweren't\b", "were not"),
+            (r"\bhaven't\b", "have not"),
+            (r"\bhasn't\b", "has not"),
+            (r"\bhadn't\b", "had not"),
             
-            # Pronouns + 'm
-            (r"\bI'?m\b", "I am"),
-            
-            # Pronouns + 're  
-            (r"\b(you|we|they)'?re\b", r"\1 are"),
-            
-            # Pronouns + 'll
-            (r"\b(I|you|he|she|it|we|they)'?ll\b", r"\1 will"),
-            
-            # Pronouns + 've
-            (r"\b(I|you|we|they)'?ve\b", r"\1 have"),
-            
-            # Pronouns + 'd
-            (r"\b(I|you|he|she|it|we|they)'?d\b", r"\1 would"),
+            # Pronouns + verb contractions
+            (r"\bI'm\b", "I am"),
+            (r"\byou're\b", "you are"),
+            (r"\bwe're\b", "we are"),
+            (r"\bthey're\b", "they are"),
+            (r"\bI'll\b", "I will"),
+            (r"\byou'll\b", "you will"),
+            (r"\bhe'll\b", "he will"),
+            (r"\bshe'll\b", "she will"),
+            (r"\bit'll\b", "it will"),
+            (r"\bwe'll\b", "we will"),
+            (r"\bthey'll\b", "they will"),
+            (r"\bI've\b", "I have"),
+            (r"\byou've\b", "you have"),
+            (r"\bwe've\b", "we have"),
+            (r"\bthey've\b", "they have"),
+            (r"\bI'd\b", "I would"),
+            (r"\byou'd\b", "you would"),
+            (r"\bhe'd\b", "he would"),
+            (r"\bshe'd\b", "she would"),
+            (r"\bwe'd\b", "we would"),
+            (r"\bthey'd\b", "they would"),
         ]
         
-        # Apply contractions with word boundaries (case insensitive)
+        # Apply contractions with case-insensitive matching
         for pattern, replacement in contractions:
             sentence = re.sub(pattern, replacement, sentence, flags=re.IGNORECASE)
         
@@ -196,8 +215,8 @@ class AcademicTextHumanizer:
             # Only replace adjectives (J), singular nouns (NN), and adverbs (RB)
             # SKIP PLURAL NOUNS (NNS) to preserve plurals!
             # Also skip proper nouns (NNP, NNPS) and possessives
-            if pos in ('JJ', 'JJR', 'JJS', 'NN', 'RB', 'RBR', 'RBS') and wordnet.synsets(word) and len(word) > 4:
-                if random.random() < 0.45:  # 45% chance for synonym replacement
+            if pos in ('JJ', 'JJR', 'JJS', 'NN', 'RB', 'RBR', 'RBS') and wordnet.synsets(word) and len(word) > 5:
+                if random.random() < 0.3:  # 30% chance for synonym replacement (quality over quantity)
                     synonyms = self._get_synonyms(word, pos)
                     if synonyms:
                         best_synonym = self._select_closest_synonym(word, synonyms)
@@ -261,7 +280,7 @@ class AcademicTextHumanizer:
         cos_scores = util.cos_sim(original_emb, synonym_embs)[0]
         max_score_index = cos_scores.argmax().item()
         max_score = cos_scores[max_score_index].item()
-        # Increased threshold from 0.5 to 0.7 for better quality
-        if max_score >= 0.7:
+        # High threshold (0.75) ensures only very similar synonyms
+        if max_score >= 0.75:
             return filtered_synonyms[max_score_index]
         return None
